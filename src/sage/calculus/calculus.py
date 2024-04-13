@@ -2404,6 +2404,10 @@ def symbolic_expression_from_maxima_string(x, equals_sub=False, maxima=maxima):
     function_syms['ilt'] = dummy_inverse_laplace
     function_syms['at'] = at
     function_syms['pochhammer'] = dummy_pochhammer
+    
+    # remove realpart and imagpart
+    if "realpart" in s:
+        s = s.replace("realpart","").replace("imagpart","")
 
     global is_simplified
     try:
