@@ -2389,6 +2389,13 @@ def symbolic_expression_from_maxima_string(x, equals_sub=False, maxima=maxima):
         s = s[5:]
         s = s[s.find("(") + 1:s.find("]") + 1]
 
+    # remove realpart and imagpart replace with sequences
+    if "realpart" in s:
+        s = s.replace("realpart(", "[")
+        s = s.replace(")+I*imagpart(", ",I*")
+        # replace final bracket with brace
+        s = s[:-1] + ']'
+
     # replace all instances of Maxima's scientific notation
     # with regular notation
     search = sci_not.search(s)
@@ -2404,10 +2411,6 @@ def symbolic_expression_from_maxima_string(x, equals_sub=False, maxima=maxima):
     function_syms['ilt'] = dummy_inverse_laplace
     function_syms['at'] = at
     function_syms['pochhammer'] = dummy_pochhammer
-    
-    # remove realpart and imagpart
-    if "realpart" in s:
-        s = s.replace("realpart","").replace("imagpart","")
 
     global is_simplified
     try:
