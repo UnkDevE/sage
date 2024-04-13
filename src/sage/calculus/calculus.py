@@ -2258,6 +2258,10 @@ def symbolic_expression_from_maxima_string(x, equals_sub=False, maxima=maxima):
         x != 0
 
     TESTS:
+    Check if real and imaginary parts are fixed::
+        sage: x = var('x')
+        sage: maxima("realpart(3) + %i*imagpart(3) < x").sage()
+        sage: maxima("realpart(3+x) + %i*imagpart(x-3) > x").sage()
 
     :issue:`8459` fixed::
 
@@ -2338,6 +2342,26 @@ def symbolic_expression_from_maxima_string(x, equals_sub=False, maxima=maxima):
     # symbolic expression.
     s = s.replace("'","")
 
+    # remove realpart and imagpart replace with sequence
+    if "realpart" in s:
+        s = s.replace("realpart(", "")
+        s =  s[:s.find(")")] + s[s.find(")")+1:]
+    if "imagpart" in s:
+        i = s.find("%i")
+        imagpart = s[i:]
+        imagpart = imagpart.replace("imagpart(", "(")
+        # inequalities can have an imaginary part to them so we expand them out
+        inq = re.search("[<>]", imagpart)
+        if inq is None:
+            s = s[:i] + imagpart
+        else:
+            inq = inq.start()
+            imagpart = imagpart[:inq] + ")" + imagpart[inq:]
+            imagpart = imagpart.replace(">", "> %i*(")
+            imagpart = imagpart.replace("<", "< %i*(")
+            s = "[" + s[:i-1] + "," + imagpart + "]"
+
+    # next we want to split mutliple expressions 
     delayed_functions = maxima_qp.findall(s)
     if len(delayed_functions):
         for X in delayed_functions:
@@ -2388,13 +2412,6 @@ def symbolic_expression_from_maxima_string(x, equals_sub=False, maxima=maxima):
     if s[0:5] == 'solve':
         s = s[5:]
         s = s[s.find("(") + 1:s.find("]") + 1]
-
-    # remove realpart and imagpart replace with sequences
-    if "realpart" in s:
-        s = s.replace("realpart(", "[")
-        s = s.replace(")+I*imagpart(", ",I*")
-        # replace final bracket with brace
-        s = s[:-1] + ']'
 
     # replace all instances of Maxima's scientific notation
     # with regular notation
