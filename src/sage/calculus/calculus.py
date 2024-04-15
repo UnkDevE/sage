@@ -2241,7 +2241,7 @@ def _parse_maxima_conj(s):
             i_start = s.find("%i")
             i_end = s.rfind(")")+1
             imagpart = s[i_start:i_end]
-            # get only real
+            # get only imag
             imagpart = imagpart.replace("imagpart(", "(")
             # inequalities can have an imaginary part to them so we expand them out
             inq = re.search("[<>]", imagpart)
@@ -2262,7 +2262,7 @@ def _parse_maxima_conj(s):
                                 realpart[real_split_i+1:]]
                         # if imag parts not the same as real part
                         imag_expr = imagpart[imag_split_i+1:].replace("%i*(","")[:-1].replace(" ","")
-                        if realpart[real_split_i+1:] == imag_expr:
+                        if realpart[real_split_i+1:].replace(" ","") == imag_expr:
                             arr += ["+", imagpart[imag_split_i+1:]]
                     else:
                        # then real split is > imag < 
@@ -2289,7 +2289,6 @@ def _parse_maxima_conj(s):
             s = realpart + ")"
     # strip spaces helps with parsing
     s = s.replace(" ", "")
-    # add braces so that parse sequence works
     return s 
 
 
@@ -2325,7 +2324,7 @@ def symbolic_expression_from_maxima_string(x, equals_sub=False, maxima=maxima):
     Check if real and imaginary parts are fixed::
         sage: x = var('x')
         sage: maxima("realpart(3 < _SAGE_VAR_x) + %i*imagpart(3 < _SAGE_VAR_x)").sage()
-        (3*I + 3) < x
+        (3*I + 3) < (I + 1)*x
         sage: maxima("realpart(3+_SAGE_VAR_x > 2) + %i*imagpart(_SAGE_VAR_x-3 < _SAGE_VAR_x)").sage()
         [2 < I*x - 3*I, x + 3 < I*x]
         sage: maxima("realpart(4+_SAGE_VAR_x < 6) + %i*imagpart(_SAGE_VAR_x - 2 > 8)").sage()
@@ -2415,7 +2414,6 @@ def symbolic_expression_from_maxima_string(x, equals_sub=False, maxima=maxima):
     # remove realpart and imagpart replace with sequence
     s = _parse_maxima_conj(s)
     
-    # next we want to split mutliple expressions 
     delayed_functions = maxima_qp.findall(s)
     if len(delayed_functions):
         for X in delayed_functions:
