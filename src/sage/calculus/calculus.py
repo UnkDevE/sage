@@ -2228,6 +2228,64 @@ def _is_function(v):
     # note that Sage variables are callable, so we only check the type
     return isinstance(v, Function) or isinstance(v, FunctionType)
 
+"""
+    function to parse maxima conjugates of a maxima string
+"""
+def _parse_maxima_conj(s):
+    if "realpart" in s:
+        # realpart always comes first therefore is OK to rfind bracket before I 
+        realpart = s[s.find("realpart("):s[:s.find("%i")].rfind(")")]
+        realpart = realpart.replace("realpart(","")
+        if "imagpart" in s:
+            # remove bracket
+            i_start = s.find("%i")
+            i_end = s.rfind(")")+1
+            imagpart = s[i_start:i_end]
+            # get only real
+            imagpart = imagpart.replace("imagpart(", "(")
+            # inequalities can have an imaginary part to them so we expand them out
+            inq = re.search("[<>]", imagpart)
+            if inq is not None:
+                inq = inq.start()
+                imagpart = imagpart[:inq] + ")" + imagpart[inq:]
+                imagpart = imagpart.replace(">", "> %i*(").replace("<", "< %i*(")
+                imag_split = re.search("[<>]", imagpart)
+                real_split = re.search("[<>]", realpart)
+                arr = []
+                if real_split and imag_split is not None:
+                    real_split_i = real_split.start() 
+                    imag_split_i = imag_split.start() 
+                    # ineqs the same
+                    if imag_split.group(0) == real_split.group(0):
+                        arr = [imagpart[:imag_split_i], "+",
+                                realpart[:real_split_i], real_split.group(0),
+                                realpart[real_split_i+1:]]
+                        # if imag parts not the same as real part
+                        imag_expr = imagpart[imag_split_i+1:].replace("%i*(","")[:-1].replace(" ","")
+                        if realpart[real_split_i+1:] == imag_expr:
+                            arr += ["+", imagpart[imag_split_i+1:]]
+                    else:
+                       # then real split is > imag < 
+                        arr = [realpart[real_split_i+1:], "<",
+                               imagpart[:imag_split_i], "+",
+                               realpart[:real_split_i], "<", 
+                               imagpart[imag_split_i+1:]
+                        ]
+                        if imag_split.group(0) == '>':
+                            # then real_split is < and imag >
+                            # swap last element with first
+                            arr = arr[-1] + arr[1:-1] + arr[1]
+                elif real_split is None:
+                    arr = [s[:i_start], imagpart, s[i_end:]]
+                else:
+                    arr = [s[:i_start], "+", imagpart, "+", s[i_end:]]
+                s = ''.join(arr)
+            else:
+                s = s[:i_start] + imagpart
+        else:
+            s = realpart
+    return s
+
 
 def symbolic_expression_from_maxima_string(x, equals_sub=False, maxima=maxima):
     r"""
@@ -2260,7 +2318,7 @@ def symbolic_expression_from_maxima_string(x, equals_sub=False, maxima=maxima):
     TESTS:
     Check if real and imaginary parts are fixed::
         sage: x = var('x')
-        sage: maxima("realpart(3) + %i*imagpart(3) < x").sage()
+        sage: maxima("realpart(3) + %i*imagpart(3 < x)").sage()
         sage: maxima("realpart(3+x) + %i*imagpart(x-3) > x").sage()
 
     :issue:`8459` fixed::
@@ -2343,41 +2401,8 @@ def symbolic_expression_from_maxima_string(x, equals_sub=False, maxima=maxima):
     s = s.replace("'","")
 
     # remove realpart and imagpart replace with sequence
-    import pdb; pdb.set_trace()
-    if "realpart" in s:
-        realpart = s[s.find("realpart("):s.find(")")]
-        if "imagpart" in s:
-            i_start = s.find("%i")
-            i_end = s.find(")")+1
-            imagpart = s[i_start:i_end]
-            # get only real
-            s = s.replace(imagpart, "")
-            imagpart = imagpart.replace("imagpart(", "(")
-            # inequalities can have an imaginary part to them so we expand them out
-            inq = re.search("[<>]", imagpart)
-            if inq is None:
-                s = s[:i_start] + imagpart
-            else:
-                inq = inq.start()
-                imagpart = imagpart[:inq] + ")" + imagpart[inq:]
-                imagpart = imagpart.replace(">", "> %i*(").replace("<", "< %i*(")
-                imag_split = re.search("[<>]", imagpart)
-                real_split = re.search("[<>]", s)
-                if real_split and imag_split is not None:
-                    real_split = real_split.start() 
-                    imag_split = imag_split.start() 
-                    arr = [ imagpart[:imag_split], 
-                            s[:real_split],
-                            s[real_split+1:],
-                            imagpart[imag_split+1:]]
-                    s = ''.join(arr)
-                elif real_split is None:
-                    s = s[:i_start] + imagpart + s[i_end:]
-                else:
-                    s = s[:i_start] + "+" + imagpart + "+" + s[i_end:]
-        else: 
-            s = realpart
-
+    s = _parse_maxima_conj(s)
+    
     # next we want to split mutliple expressions 
     delayed_functions = maxima_qp.findall(s)
     if len(delayed_functions):
