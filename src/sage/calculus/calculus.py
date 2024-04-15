@@ -2325,10 +2325,12 @@ def symbolic_expression_from_maxima_string(x, equals_sub=False, maxima=maxima):
     Check if real and imaginary parts are fixed::
         sage: x = var('x')
         sage: maxima("realpart(3 < _SAGE_VAR_x) + %i*imagpart(3 < _SAGE_VAR_x)").sage()
-        x + 3*I + 3 < 3
+        (3*I + 3) < x
         sage: maxima("realpart(3+_SAGE_VAR_x > 2) + %i*imagpart(_SAGE_VAR_x-3 < _SAGE_VAR_x)").sage()
         [2 < I*x - 3*I, x + 3 < I*x]
-        sage: maxima('realpart(_SAGE_VAR_x > -((13*sqrt(455))/(18*sqrt(113146))))+imagpart(%i*(x > -((13*sqrt(455))/(18*sqrt(113146)))))').sage()
+        sage: maxima("realpart(4+_SAGE_VAR_x < 6) + %i*imagpart(_SAGE_VAR_x - 2 > 8)").sage()
+        [(8*I) < I*x - 2*I, x + 4 < 6]
+        sage: maxima('realpart(_SAGE_VAR_x > -((13*sqrt(455))/(18*sqrt(113146))))+imagpart(%i*(_SAGE_VAR_x > -((13*sqrt(455))/(18*sqrt(113146)))))').sage()
         x > -13/2036628*sqrt(113146)*sqrt(455)
 
     :issue:`8459` fixed::
