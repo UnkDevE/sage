@@ -2228,10 +2228,10 @@ def _is_function(v):
     # note that Sage variables are callable, so we only check the type
     return isinstance(v, Function) or isinstance(v, FunctionType)
 
-"""
-    function to parse maxima conjugates of a maxima string
-"""
 def _parse_maxima_conj(s):
+    r"""
+        function to parse maxima conjugates of a maxima string
+    """
     if "realpart" in s:
         # realpart always comes first therefore is OK to rfind bracket before I 
         realpart = s[s.find("realpart("):s[:s.find("%i")].rfind(")")]
@@ -2267,14 +2267,16 @@ def _parse_maxima_conj(s):
                     else:
                        # then real split is > imag < 
                         arr = [realpart[real_split_i+1:], "<",
-                               imagpart[:imag_split_i], "+",
+                               imagpart[:imag_split_i], ",",
                                realpart[:real_split_i], "<", 
                                imagpart[imag_split_i+1:]
                         ]
                         if imag_split.group(0) == '>':
                             # then real_split is < and imag >
                             # swap last element with first
-                            arr = arr[-1] + arr[1:-1] + arr[1]
+                            arr = [*arr[-1], *arr[1:-1], *arr[0]]
+                        # make arr list of sols
+                        arr = ["[", *arr, "]"]
                 elif real_split is None:
                     arr = [s[:i_start], imagpart, s[i_end:]]
                 else:
@@ -2283,8 +2285,12 @@ def _parse_maxima_conj(s):
             else:
                 s = s[:i_start] + imagpart
         else:
-            s = realpart
-    return s
+            # add bracket back on
+            s = realpart + ")"
+    # strip spaces helps with parsing
+    s = s.replace(" ", "")
+    # add braces so that parse sequence works
+    return s 
 
 
 def symbolic_expression_from_maxima_string(x, equals_sub=False, maxima=maxima):
@@ -2318,8 +2324,12 @@ def symbolic_expression_from_maxima_string(x, equals_sub=False, maxima=maxima):
     TESTS:
     Check if real and imaginary parts are fixed::
         sage: x = var('x')
-        sage: maxima("realpart(3) + %i*imagpart(3 < x)").sage()
-        sage: maxima("realpart(3+x) + %i*imagpart(x-3) > x").sage()
+        sage: maxima("realpart(3 < _SAGE_VAR_x) + %i*imagpart(3 < _SAGE_VAR_x)").sage()
+        x + 3*I + 3 < 3
+        sage: maxima("realpart(3+_SAGE_VAR_x > 2) + %i*imagpart(_SAGE_VAR_x-3 < _SAGE_VAR_x)").sage()
+        [2 < I*x - 3*I, x + 3 < I*x]
+        sage: maxima('realpart(_SAGE_VAR_x > -((13*sqrt(455))/(18*sqrt(113146))))+imagpart(%i*(x > -((13*sqrt(455))/(18*sqrt(113146)))))').sage()
+        x > -13/2036628*sqrt(113146)*sqrt(455)
 
     :issue:`8459` fixed::
 
