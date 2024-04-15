@@ -2343,23 +2343,40 @@ def symbolic_expression_from_maxima_string(x, equals_sub=False, maxima=maxima):
     s = s.replace("'","")
 
     # remove realpart and imagpart replace with sequence
+    import pdb; pdb.set_trace()
     if "realpart" in s:
-        s = s.replace("realpart(", "")
-        s =  s[:s.find(")")] + s[s.find(")")+1:]
-    if "imagpart" in s:
-        i = s.find("%i")
-        imagpart = s[i:]
-        imagpart = imagpart.replace("imagpart(", "(")
-        # inequalities can have an imaginary part to them so we expand them out
-        inq = re.search("[<>]", imagpart)
-        if inq is None:
-            s = s[:i] + imagpart
-        else:
-            inq = inq.start()
-            imagpart = imagpart[:inq] + ")" + imagpart[inq:]
-            imagpart = imagpart.replace(">", "> %i*(")
-            imagpart = imagpart.replace("<", "< %i*(")
-            s = "[" + s[:i-1] + "," + imagpart + "]"
+        realpart = s[s.find("realpart("):s.find(")")]
+        if "imagpart" in s:
+            i_start = s.find("%i")
+            i_end = s.find(")")+1
+            imagpart = s[i_start:i_end]
+            # get only real
+            s = s.replace(imagpart, "")
+            imagpart = imagpart.replace("imagpart(", "(")
+            # inequalities can have an imaginary part to them so we expand them out
+            inq = re.search("[<>]", imagpart)
+            if inq is None:
+                s = s[:i_start] + imagpart
+            else:
+                inq = inq.start()
+                imagpart = imagpart[:inq] + ")" + imagpart[inq:]
+                imagpart = imagpart.replace(">", "> %i*(").replace("<", "< %i*(")
+                imag_split = re.search("[<>]", imagpart)
+                real_split = re.search("[<>]", s)
+                if real_split and imag_split is not None:
+                    real_split = real_split.start() 
+                    imag_split = imag_split.start() 
+                    arr = [ imagpart[:imag_split], 
+                            s[:real_split],
+                            s[real_split+1:],
+                            imagpart[imag_split+1:]]
+                    s = ''.join(arr)
+                elif real_split is None:
+                    s = s[:i_start] + imagpart + s[i_end:]
+                else:
+                    s = s[:i_start] + "+" + imagpart + "+" + s[i_end:]
+        else: 
+            s = realpart
 
     # next we want to split mutliple expressions 
     delayed_functions = maxima_qp.findall(s)
